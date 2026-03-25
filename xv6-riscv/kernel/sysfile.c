@@ -474,6 +474,129 @@ sys_exec(void)
   return -1;
 }
 
+// sys_getcwd - reconstruct the absolute path of the current working directory.
+//
+// Strategy: start at myproc()->cwd and walk upward via ".." until we reach
+// the root inode (inum == ROOTINO on ROOTDEV).  At each step we search the
+// parent directory for the dirent whose inum matches the child, to obtain
+// the component name.  We build the path right-to-left inside a kernel
+// buffer and then copyout to the user-supplied buffer.
+//
+// Locking discipline: we hold the child's sleep-lock only while reading its
+// inum/dev, then release BEFORE locking the parent, so we never hold two
+// inode locks simultaneously.
+uint64
+sys_getcwd(void)
+{
+  uint64 buf_user;
+  int usize;
+  struct proc *p = myproc();
+
+  argaddr(0, &buf_user);
+  argint(1, &usize);
+
+  if(usize <= 0)
+    return -1;
+  if(usize > MAXPATH)
+    usize = MAXPATH;
+
+  // Build path in kernel space, working right-to-left.
+  char kbuf[MAXPATH];
+  int   pos = MAXPATH - 1;
+  kbuf[pos] = '\0';
+
+  // Take an extra reference so we can iput when done,
+  // without disturbing the process's own reference.
+  struct inode *ip = idup(p->cwd);
+
+  for(;;) {
+    ilock(ip);
+    uint cur_inum = ip->inum;
+    uint cur_dev  = ip->dev;
+    iunlock(ip);
+
+    // Are we at the root?
+    if(cur_inum == ROOTINO && cur_dev == ROOTDEV) {
+      iput(ip);
+      break;
+    }
+
+    // Find parent directory.
+    ilock(ip);
+    struct inode *parent = dirlookup(ip, "..", 0);
+    iunlock(ip);
+    if(parent == 0) {
+      iput(ip);
+      return -1;
+    }
+
+    // Search parent for the entry matching cur_inum.
+    ilock(parent);
+    struct dirent de;
+    int found = 0;
+    for(uint off = 0; off < parent->size; off += sizeof(de)) {
+      if(readi(parent, 0, (uint64)&de, off, sizeof(de)) != sizeof(de)) {
+        iunlockput(parent);
+        iput(ip);
+        return -1;
+      }
+      if(de.inum == cur_inum) {
+        found = 1;
+        break;
+      }
+    }
+    iunlock(parent);
+
+    if(!found) {
+      iput(parent);
+      iput(ip);
+      return -1;
+    }
+
+    // de.name may not be NUL-terminated (DIRSIZ chars), measure it safely.
+    int namelen = 0;
+    while(namelen < DIRSIZ && de.name[namelen] != '\0')
+      namelen++;
+
+    // Prepend "/name" to the buffer (right-to-left).
+    if(pos < namelen + 1) {  // +1 for the '/'
+      iput(parent);
+      iput(ip);
+      return -1;             // path too long for buffer
+    }
+    pos -= namelen;
+    memmove(kbuf + pos, de.name, namelen);
+    pos--;
+    kbuf[pos] = '/';
+
+    iput(ip);
+    ip = parent;
+  }
+
+  // ip has been iput inside the loop; kbuf[pos] is now the start of the path.
+  // Special case: if we were already at the root, nothing was prepended yet.
+  // Manually write the lone '/' one slot before the NUL terminator.
+  if(pos == MAXPATH - 1) {
+    pos--;
+    kbuf[pos] = '/';
+    // kbuf[pos+1] is already '\0'
+  }
+  char *path = kbuf + pos;
+
+  // Safety: path must start with '/'
+  if(path[0] != '/')
+    return -1;
+
+  int pathlen = MAXPATH - 1 - pos + 1;  // includes '\0'
+  if(pathlen > usize)
+    return -1;
+
+  if(copyout(p->pagetable, buf_user, path, pathlen) < 0)
+    return -1;
+
+  return 0;
+}
+
 uint64
 sys_pipe(void)
 {

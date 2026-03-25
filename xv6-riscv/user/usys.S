@@ -105,3 +105,8 @@ uptime:
  li a7, SYS_uptime
  ecall
  ret
+.global getcwd
+getcwd:
+ li a7, SYS_getcwd
+ ecall
+ ret

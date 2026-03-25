@@ -77,6 +77,19 @@ runcmd(struct cmd *cmd)
     if(ecmd->argv[0] == 0)
       exit(1);
     exec(ecmd->argv[0], ecmd->argv);
+    // If the bare name failed and it's not an absolute path,
+    // retry with "/" prepended — all xv6 binaries live in the root.
+    if(ecmd->argv[0][0] != '/') {
+      char buf[64];
+      buf[0] = '/';
+      buf[1] = '\0';
+      // safest: use memmove so we don't need string.h beyond what ulib has
+      int len = strlen(ecmd->argv[0]);
+      if(len < (int)sizeof(buf) - 1) {
+        memmove(buf + 1, ecmd->argv[0], len + 1);
+        exec(buf, ecmd->argv);
+      }
+    }
     fprintf(2, "exec %s failed\n", ecmd->argv[0]);
     break;
 
