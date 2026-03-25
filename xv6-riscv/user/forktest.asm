@@ -45,7 +45,7 @@ forktest(void)
 
   print("fork test\n");
   32:	00000517          	auipc	a0,0x0
-  36:	3e650513          	addi	a0,a0,998 # 418 <getcwd+0xe>
+  36:	40650513          	addi	a0,a0,1030 # 438 <lock_destroy+0xe>
   3a:	fc7ff0ef          	jal	0 <print>
 
   for(n=0; n<N; n++){
@@ -67,7 +67,7 @@ forktest(void)
   if(n == N){
     print("fork claimed to work N times!\n");
   54:	00000517          	auipc	a0,0x0
-  58:	41450513          	addi	a0,a0,1044 # 468 <getcwd+0x5e>
+  58:	43450513          	addi	a0,a0,1076 # 488 <lock_destroy+0x5e>
   5c:	fa5ff0ef          	jal	0 <print>
     exit(1);
   60:	4505                	li	a0,1
@@ -80,7 +80,7 @@ forktest(void)
     if(wait(0) < 0){
       print("wait stopped early\n");
   6a:	00000517          	auipc	a0,0x0
-  6e:	3be50513          	addi	a0,a0,958 # 428 <getcwd+0x1e>
+  6e:	3de50513          	addi	a0,a0,990 # 448 <lock_destroy+0x1e>
   72:	f8fff0ef          	jal	0 <print>
       exit(1);
   76:	4505                	li	a0,1
@@ -91,7 +91,7 @@ forktest(void)
   if(wait(0) != -1){
     print("wait got too many\n");
   7c:	00000517          	auipc	a0,0x0
-  80:	3c450513          	addi	a0,a0,964 # 440 <getcwd+0x36>
+  80:	3e450513          	addi	a0,a0,996 # 460 <lock_destroy+0x36>
   84:	f7dff0ef          	jal	0 <print>
     exit(1);
   88:	4505                	li	a0,1
@@ -114,7 +114,7 @@ forktest(void)
 
   print("fork test OK\n");
   ac:	00000517          	auipc	a0,0x0
-  b0:	3ac50513          	addi	a0,a0,940 # 458 <getcwd+0x4e>
+  b0:	3cc50513          	addi	a0,a0,972 # 478 <lock_destroy+0x4e>
   b4:	f4dff0ef          	jal	0 <print>
 }
   b8:	60e2                	ld	ra,24(sp)
@@ -825,3 +825,43 @@ getcwd:
  40c:	00000073          	ecall
  ret
  410:	8082                	ret
+
+0000000000000412 <lock_create>:
+.global lock_create
+lock_create:
+ li a7, SYS_lock_create
+ 412:	48dd                	li	a7,23
+ ecall
+ 414:	00000073          	ecall
+ ret
+ 418:	8082                	ret
+
+000000000000041a <lock_acquire>:
+.global lock_acquire
+lock_acquire:
+ li a7, SYS_lock_acquire
+ 41a:	48e1                	li	a7,24
+ ecall
+ 41c:	00000073          	ecall
+ ret
+ 420:	8082                	ret
+
+0000000000000422 <lock_release>:
+.global lock_release
+lock_release:
+ li a7, SYS_lock_release
+ 422:	48e5                	li	a7,25
+ ecall
+ 424:	00000073          	ecall
+ ret
+ 428:	8082                	ret
+
+000000000000042a <lock_destroy>:
+.global lock_destroy
+lock_destroy:
+ li a7, SYS_lock_destroy
+ 42a:	48e9                	li	a7,26
+ ecall
+ 42c:	00000073          	ecall
+ ret
+ 430:	8082                	ret

@@ -43,3 +43,7 @@ entry("sbrk");
 entry("pause");
 entry("uptime");
 entry("getcwd");
+entry("lock_create");
+entry("lock_acquire");
+entry("lock_release");
+entry("lock_destroy");

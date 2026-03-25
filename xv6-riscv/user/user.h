@@ -25,6 +25,10 @@ char* sys_sbrk(int,int);
 int pause(int);
 int uptime(void);
 int getcwd(char*, int);
+int lock_create(void);
+int lock_acquire(int);
+int lock_release(int);
+int lock_destroy(int);
 
 // ulib.c
 int stat(const char*, struct stat*);

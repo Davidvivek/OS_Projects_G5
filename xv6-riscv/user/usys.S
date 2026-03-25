@@ -110,3 +110,23 @@ getcwd:
  li a7, SYS_getcwd
  ecall
  ret
+.global lock_create
+lock_create:
+ li a7, SYS_lock_create
+ ecall
+ ret
+.global lock_acquire
+lock_acquire:
+ li a7, SYS_lock_acquire
+ ecall
+ ret
+.global lock_release
+lock_release:
+ li a7, SYS_lock_release
+ ecall
+ ret
+.global lock_destroy
+lock_destroy:
+ li a7, SYS_lock_destroy
+ ecall
+ ret

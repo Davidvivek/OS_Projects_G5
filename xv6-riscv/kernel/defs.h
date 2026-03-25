@@ -113,6 +113,10 @@ void            release(struct spinlock*);
 void            push_off(void);
 void            pop_off(void);
 
+// syslock.c
+void            lockinit(void);
+
+
 // sleeplock.c
 void            acquiresleep(struct sleeplock*);
 void            releasesleep(struct sleeplock*);

@@ -26,6 +26,7 @@ OBJS = \
   $K/pipe.o \
   $K/exec.o \
   $K/sysfile.o \
+  $K/syslock.o \
   $K/kernelvec.o \
   $K/plic.o \
   $K/virtio_disk.o
@@ -146,6 +147,7 @@ UPROGS=\
 	$U/_forphan\
 	$U/_dorphan\
 	$U/_pwd\
+	$U/_locktest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
