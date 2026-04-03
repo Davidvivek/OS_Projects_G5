@@ -29,6 +29,8 @@ int lock_create(void);
 int lock_acquire(int);
 int lock_release(int);
 int lock_destroy(int);
+int clone(void(*fn)(void*), void *arg, void *stack);
+int join(void);
 
 // ulib.c
 int stat(const char*, struct stat*);
@@ -44,6 +46,8 @@ int memcmp(const void *, const void *, uint);
 void *memcpy(void *, const void *, uint);
 char* sbrk(int);
 char* sbrklazy(int);
+int   thread_create(void(*fn)(void*), void *arg, void **stack);
+int   thread_join(void **stack);
 
 // printf.c
 void fprintf(int, const char*, ...) __attribute__ ((format (printf, 2, 3)));

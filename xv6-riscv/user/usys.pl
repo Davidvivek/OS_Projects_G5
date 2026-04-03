@@ -47,3 +47,5 @@ entry("lock_create");
 entry("lock_acquire");
 entry("lock_release");
 entry("lock_destroy");
+entry("clone");
+entry("join");

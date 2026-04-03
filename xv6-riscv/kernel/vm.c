@@ -323,6 +323,39 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   return -1;
 }
 
+// Share user memory pages from parent into child's page table (for threads).
+// Copies PTEs without allocating new physical memory - threads share pages.
+// On failure, unmaps what was mapped (without freeing physical pages).
+// returns 0 on success, -1 on failure.
+int
+uvmshare(pagetable_t old, pagetable_t new, uint64 sz)
+{
+  pte_t *pte;
+  uint64 pa, i;
+  uint flags;
+
+  for(i = 0; i < sz; i += PGSIZE){
+    if((pte = walk(old, i, 0)) == 0)
+      continue;   // page table entry not allocated
+    if((*pte & PTE_V) == 0)
+      continue;   // physical page not allocated
+    pa = PTE2PA(*pte);
+    flags = PTE_FLAGS(*pte);
+    // Map the same physical page into the new page table (no alloc).
+    if(mappages(new, i, PGSIZE, pa, flags) != 0){
+      goto err;
+    }
+  }
+  return 0;
+
+ err:
+  // Unmap what we mapped, but do NOT free the physical pages (they belong to parent).
+  uvmunmap(new, 0, i / PGSIZE, 0);
+  return -1;
+}
+
+
+
 // mark a PTE invalid for user access.
 // used by exec for the user stack guard page.
 void

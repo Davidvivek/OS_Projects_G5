@@ -106,6 +106,8 @@ extern uint64 sys_lock_create(void);
 extern uint64 sys_lock_acquire(void);
 extern uint64 sys_lock_release(void);
 extern uint64 sys_lock_destroy(void);
+extern uint64 sys_clone(void);
+extern uint64 sys_join(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -136,6 +138,8 @@ static uint64 (*syscalls[])(void) = {
 [SYS_lock_acquire] sys_lock_acquire,
 [SYS_lock_release] sys_lock_release,
 [SYS_lock_destroy] sys_lock_destroy,
+[SYS_clone]        sys_clone,
+[SYS_join]         sys_join,
 };
 
 void

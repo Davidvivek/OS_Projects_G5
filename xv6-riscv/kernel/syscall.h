@@ -25,3 +25,5 @@
 #define SYS_lock_acquire 24
 #define SYS_lock_release 25
 #define SYS_lock_destroy 26
+#define SYS_clone        27
+#define SYS_join         28

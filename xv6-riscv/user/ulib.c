@@ -159,3 +159,38 @@ sbrklazy(int n) {
   return sys_sbrk(n, SBRK_LAZY);
 }
 
+// thread_create allocates a page-sized stack, calls clone(fn, arg, stacktop).
+// Returns the new thread's pid, or -1 on error.
+// The stack is passed back via *stack so the caller can free it after join.
+int
+thread_create(void(*fn)(void*), void *arg, void **stack)
+{
+  char *s = malloc(PGSIZE);
+  if(s == 0)
+    return -1;
+  *stack = s;
+  // Stack grows downward- pass the top of the allocated region.
+  int pid = clone(fn, arg, s + PGSIZE);
+  if(pid < 0){
+    free(s);
+    *stack = 0;
+    return -1;
+  }
+  return pid;
+}
+
+// Wait for any child thread to exit.
+// If stack is non-null, frees the memory pointed to by *stack and clears it.
+// Returns the joined thread's pid, or -1 Son error.
+int
+thread_join(void **stack)
+{
+  int pid = join();
+  if(pid < 0)
+    return -1;
+  if(stack && *stack){
+    free(*stack);
+    *stack = 0;
+  }
+  return pid;
+}

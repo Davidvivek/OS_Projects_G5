@@ -107,3 +107,22 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// Create a new thread sharing the caller's address space.
+// Arguments: fn (function pointer), arg (void* arg), stack (top of stack).
+uint64
+sys_clone(void)
+{
+  uint64 fn, arg, stack;
+  argaddr(0, &fn);
+  argaddr(1, &arg);
+  argaddr(2, &stack);
+  return kclone(fn, arg, stack);
+}
+
+// Wait for any child thread to exit.
+uint64
+sys_join(void)
+{
+  return kjoin();
+}

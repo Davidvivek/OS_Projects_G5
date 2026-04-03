@@ -130,3 +130,13 @@ lock_destroy:
  li a7, SYS_lock_destroy
  ecall
  ret
+.global clone
+clone:
+ li a7, SYS_clone
+ ecall
+ ret
+.global join
+join:
+ li a7, SYS_join
+ ecall
+ ret

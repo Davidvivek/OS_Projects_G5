@@ -158,8 +158,13 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
-  if(p->pagetable)
-    proc_freepagetable(p->pagetable, p->sz);
+  if(p->pagetable) {
+    if(p->is_thread)
+      // Thread: free page table structure only, not shared physical pages.
+      proc_freepagetable_thread(p->pagetable, p->sz);
+    else
+      proc_freepagetable(p->pagetable, p->sz);
+  }
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -168,6 +173,7 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
+  p->is_thread = 0;
   p->state = UNUSED;
 }
 
@@ -213,6 +219,19 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   uvmfree(pagetable, sz);
+}
+
+// Free a thread's page table structure.
+// Does NOT free the user physical pages (shared with parent).
+void
+proc_freepagetable_thread(pagetable_t pagetable, uint64 sz)
+{
+  uvmunmap(pagetable, TRAMPOLINE, 1, 0);
+  uvmunmap(pagetable, TRAPFRAME, 1, 0);
+  // Unmap shared user pages without freeing the physical memory.
+  if(sz > 0)
+    uvmunmap(pagetable, 0, PGROUNDUP(sz)/PGSIZE, 0);
+  freewalk(pagetable);
 }
 
 // Set up first user process.
@@ -303,6 +322,109 @@ kfork(void)
   release(&np->lock);
 
   return pid;
+}
+
+// Create a new thread sharing the calling process's address space.
+// fn    - user function the thread will execute
+// arg   - argument passed to fn (in a0)
+// stack - top of the pre-allocated user stack (stack grows downward)
+// Returns thread pid on success, -1 on failure.
+int
+kclone(uint64 fn, uint64 arg, uint64 stack)
+{
+  int i, pid;
+  struct proc *nt;            // new thread
+  struct proc *p = myproc();  // calling process
+
+  // Allocate a proc slot (gets its own kernel stack, trapframe, context).
+  if((nt = allocproc()) == 0){
+    return -1;
+  }
+
+  // Create a lightweight page table: maps trampoline + trapframe,
+  // then shares user pages from the parent (same physical pages).
+  // proc_pagetable already maps TRAMPOLINE and TRAPFRAME for nt.
+  // (allocproc already called proc_pagetable for nt — we re-use it)
+
+  // Share user-space pages into the thread's page table.
+  if(uvmshare(p->pagetable, nt->pagetable, p->sz) < 0){
+    freeproc(nt);
+    release(&nt->lock);
+    return -1;
+  }
+  nt->sz = p->sz;
+
+  // Copy the calling process's trap frame so the thread inherits
+  // open file state, program counter layout, etc.
+  *(nt->trapframe) = *(p->trapframe);
+
+  // Override epc, a0, sp to start the thread at fn(arg) on its own stack.
+  nt->trapframe->epc = fn;    // thread entry point
+  nt->trapframe->a0  = arg;   // first argument
+  nt->trapframe->sp  = stack; // pre-allocated user stack top
+
+  // Share open file descriptors.
+  for(i = 0; i < NOFILE; i++)
+    if(p->ofile[i])
+      nt->ofile[i] = filedup(p->ofile[i]);
+  nt->cwd = idup(p->cwd);
+
+  safestrcpy(nt->name, p->name, sizeof(p->name));
+
+  // Mark as thread so freeproc skips freeing shared pages.
+  nt->is_thread = 1;
+
+  pid = nt->pid;
+
+  release(&nt->lock);
+
+  acquire(&wait_lock);
+  nt->parent = p;
+  release(&wait_lock);
+
+  acquire(&nt->lock);
+  nt->state = RUNNABLE;
+  release(&nt->lock);
+
+  return pid;
+}
+
+// Wait for any child THREAD (is_thread==1) to exit.
+// Returns the exited thread's pid, or -1 if no thread children.
+int
+kjoin(void)
+{
+  struct proc *pp;
+  int havekids, pid;
+  struct proc *p = myproc();
+
+  acquire(&wait_lock);
+
+  for(;;){
+    havekids = 0;
+    for(pp = proc; pp < &proc[NPROC]; pp++){
+      if(pp->parent == p && pp->is_thread){
+        acquire(&pp->lock);
+        havekids = 1;
+        if(pp->state == ZOMBIE){
+          pid = pp->pid;
+          freeproc(pp);
+          release(&pp->lock);
+          release(&wait_lock);
+          return pid;
+        }
+        release(&pp->lock);
+      }
+    }
+
+    if(!havekids || killed(p)){
+      release(&wait_lock);
+      return -1;
+    }
+
+    // Sleep until a thread child exits.
+    sleep(p, &wait_lock);
+  }
 }
 
 // Pass p's abandoned children to init.
