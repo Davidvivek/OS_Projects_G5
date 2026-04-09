@@ -28,6 +28,7 @@ main()
     iinit();         // inode table
     fileinit();      // file table
     lockinit();      // user-space lock table
+    shminit();       // shared memory table
     virtio_disk_init(); // emulated hard disk
     userinit();      // first user process
     __sync_synchronize();

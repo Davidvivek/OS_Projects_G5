@@ -27,3 +27,6 @@
 #define SYS_lock_destroy 26
 #define SYS_clone        27
 #define SYS_join         28
+#define SYS_shmget       29
+#define SYS_shmattach    30
+#define SYS_shmdetach    31
