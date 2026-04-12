@@ -140,3 +140,8 @@ join:
  li a7, SYS_join
  ecall
  ret
+.global getprocessinfo
+getprocessinfo:
+ li a7, SYS_getprocessinfo
+ ecall
+ ret

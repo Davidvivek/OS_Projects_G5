@@ -31,9 +31,13 @@ int lock_release(int);
 int lock_destroy(int);
 int clone(void(*fn)(void*), void *arg, void *stack);
 int join(void);
+
+int getprocessinfo(void);
+
 int shmget(int key, int size);
 void* shmattach(int shmid);
 int shmdetach(void *addr);
+
 
 // ulib.c
 int stat(const char*, struct stat*);

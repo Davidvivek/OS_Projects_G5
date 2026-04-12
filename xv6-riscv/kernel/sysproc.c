@@ -126,3 +126,23 @@ sys_join(void)
 {
   return kjoin();
 }
+
+uint64
+sys_getprocessinfo(void)
+{
+    struct proc *p = myproc();
+
+    printf("PID: %d\n", p->pid);
+    printf("Parent PID: %d\n", p->parent->pid);
+    char *state_names[] = {
+         "UNUSED",
+         "SLEEPING",
+         "RUNNABLE",
+         "RUNNING",
+         "ZOMBIE"
+};
+
+printf("State: %s\n", state_names[p->state]);
+
+    return 0;
+}
