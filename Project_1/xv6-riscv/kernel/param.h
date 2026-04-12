@@ -12,7 +12,4 @@
 #define FSSIZE       2000  // size of file system in blocks
 #define MAXPATH      128   // maximum file path name
 #define USERSTACK    1     // user stack pages
-#define NLOCK        16    // maximum number of user-space locks
-#define NSHM         16    // maximum number of shared memory segments
-#define SHM_MAXPAGES  4    // maximum pages per shared memory segment (4 * 4096 = 16 KB)
 

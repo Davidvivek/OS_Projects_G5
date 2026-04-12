@@ -124,6 +124,10 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  p->ctime = ticks;
+  p->rtime = 0;
+  p->etime = 0;
+  p->tracemask = 0;
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -158,13 +162,8 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
-  if(p->pagetable) {
-    if(p->is_thread)
-      // Thread: free page table structure only, not shared physical pages.
-      proc_freepagetable_thread(p->pagetable, p->sz);
-    else
-      proc_freepagetable(p->pagetable, p->sz);
-  }
+  if(p->pagetable)
+    proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -173,7 +172,6 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
-  p->is_thread = 0;
   p->state = UNUSED;
 }
 
@@ -219,19 +217,6 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   uvmfree(pagetable, sz);
-}
-
-// Free a thread's page table structure.
-// Does NOT free the user physical pages (shared with parent).
-void
-proc_freepagetable_thread(pagetable_t pagetable, uint64 sz)
-{
-  uvmunmap(pagetable, TRAMPOLINE, 1, 0);
-  uvmunmap(pagetable, TRAPFRAME, 1, 0);
-  // Unmap shared user pages without freeing the physical memory.
-  if(sz > 0)
-    uvmunmap(pagetable, 0, PGROUNDUP(sz)/PGSIZE, 0);
-  freewalk(pagetable);
 }
 
 // Set up first user process.
@@ -324,109 +309,6 @@ kfork(void)
   return pid;
 }
 
-// Create a new thread sharing the calling process's address space.
-// fn    - user function the thread will execute
-// arg   - argument passed to fn (in a0)
-// stack - top of the pre-allocated user stack (stack grows downward)
-// Returns thread pid on success, -1 on failure.
-int
-kclone(uint64 fn, uint64 arg, uint64 stack)
-{
-  int i, pid;
-  struct proc *nt;            // new thread
-  struct proc *p = myproc();  // calling process
-
-  // Allocate a proc slot (gets its own kernel stack, trapframe, context).
-  if((nt = allocproc()) == 0){
-    return -1;
-  }
-
-  // Create a lightweight page table: maps trampoline + trapframe,
-  // then shares user pages from the parent (same physical pages).
-  // proc_pagetable already maps TRAMPOLINE and TRAPFRAME for nt.
-  // (allocproc already called proc_pagetable for nt — we re-use it)
-
-  // Share user-space pages into the thread's page table.
-  if(uvmshare(p->pagetable, nt->pagetable, p->sz) < 0){
-    freeproc(nt);
-    release(&nt->lock);
-    return -1;
-  }
-  nt->sz = p->sz;
-
-  // Copy the calling process's trap frame so the thread inherits
-  // open file state, program counter layout, etc.
-  *(nt->trapframe) = *(p->trapframe);
-
-  // Override epc, a0, sp to start the thread at fn(arg) on its own stack.
-  nt->trapframe->epc = fn;    // thread entry point
-  nt->trapframe->a0  = arg;   // first argument
-  nt->trapframe->sp  = stack; // pre-allocated user stack top
-
-  // Share open file descriptors.
-  for(i = 0; i < NOFILE; i++)
-    if(p->ofile[i])
-      nt->ofile[i] = filedup(p->ofile[i]);
-  nt->cwd = idup(p->cwd);
-
-  safestrcpy(nt->name, p->name, sizeof(p->name));
-
-  // Mark as thread so freeproc skips freeing shared pages.
-  nt->is_thread = 1;
-
-  pid = nt->pid;
-
-  release(&nt->lock);
-
-  acquire(&wait_lock);
-  nt->parent = p;
-  release(&wait_lock);
-
-  acquire(&nt->lock);
-  nt->state = RUNNABLE;
-  release(&nt->lock);
-
-  return pid;
-}
-
-// Wait for any child THREAD (is_thread==1) to exit.
-// Returns the exited thread's pid, or -1 if no thread children.
-int
-kjoin(void)
-{
-  struct proc *pp;
-  int havekids, pid;
-  struct proc *p = myproc();
-
-  acquire(&wait_lock);
-
-  for(;;){
-    havekids = 0;
-    for(pp = proc; pp < &proc[NPROC]; pp++){
-      if(pp->parent == p && pp->is_thread){
-        acquire(&pp->lock);
-        havekids = 1;
-        if(pp->state == ZOMBIE){
-          pid = pp->pid;
-          freeproc(pp);
-          release(&pp->lock);
-          release(&wait_lock);
-          return pid;
-        }
-        release(&pp->lock);
-      }
-    }
-
-    if(!havekids || killed(p)){
-      release(&wait_lock);
-      return -1;
-    }
-
-    // Sleep until a thread child exits.
-    sleep(p, &wait_lock);
-  }
-}
-
 // Pass p's abandoned children to init.
 // Caller must hold wait_lock.
 void
@@ -478,6 +360,7 @@ kexit(int status)
   acquire(&p->lock);
 
   p->xstate = status;
+  p->etime = ticks;
   p->state = ZOMBIE;
 
   release(&wait_lock);
@@ -809,4 +692,78 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+void
+ps(void)
+{
+  struct proc *p;
+  static char *states[] = {
+    [UNUSED]   "unused",
+    [USED]     "used  ",
+    [SLEEPING] "sleep ",
+    [RUNNABLE] "runble",
+    [RUNNING]  "run   ",
+    [ZOMBIE]   "zombie"
+  };
+  printf("PID\tSTATE\tNAME\n");
+  for(p = proc; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
+    if(p->state == UNUSED){
+      release(&p->lock);
+      continue;
+    }
+    char *state = states[p->state];
+    printf("%d\t%s\t%s\n", p->pid, state, p->name);
+    release(&p->lock);
+  }
+}
+
+int
+waitx(uint64 addr, uint *wtime, uint *rtime)
+{
+  struct proc *np;
+  int havekids, pid;
+  struct proc *p = myproc();
+
+  acquire(&wait_lock);
+  for(;;){
+    havekids = 0;
+    for(np = proc; np < &proc[NPROC]; np++){
+      if(np->parent != p)
+        continue;
+      acquire(&np->lock);
+      havekids = 1;
+      if(np->state == ZOMBIE){
+        pid = np->pid;
+        *rtime = np->rtime;
+        *wtime = np->etime - np->ctime - np->rtime;
+        if(addr != 0 && copyout(p->pagetable, addr,
+            (char *)&np->xstate, sizeof(np->xstate)) < 0){
+          release(&np->lock);
+          release(&wait_lock);
+          return -1;
+        }
+        freeproc(np);
+        release(&np->lock);
+        release(&wait_lock);
+        return pid;
+      }
+      release(&np->lock);
+    }
+    if(!havekids || killed(p)){
+      release(&wait_lock);
+      return -1;
+    }
+    sleep(p, &wait_lock);
+  }
+}
+
+int syscall_count[27];
+
+int
+get_syscall_count(int n)
+{
+  if(n <= 0 || n > 26) return -1;
+  return syscall_count[n];
 }

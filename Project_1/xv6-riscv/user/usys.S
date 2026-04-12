@@ -35,6 +35,31 @@ close:
  li a7, SYS_close
  ecall
  ret
+.global getppid
+getppid:
+ li a7, SYS_getppid
+ ecall
+ ret
+.global ps
+ps:
+ li a7, SYS_ps
+ ecall
+ ret
+.global trace
+trace:
+ li a7, SYS_trace
+ ecall
+ ret
+.global waitx
+waitx:
+ li a7, SYS_waitx
+ ecall
+ ret
+.global getcount
+getcount:
+ li a7, SYS_getcount
+ ecall
+ ret
 .global kill
 kill:
  li a7, SYS_kill
@@ -103,60 +128,5 @@ pause:
 .global uptime
 uptime:
  li a7, SYS_uptime
- ecall
- ret
-.global getcwd
-getcwd:
- li a7, SYS_getcwd
- ecall
- ret
-.global lock_create
-lock_create:
- li a7, SYS_lock_create
- ecall
- ret
-.global lock_acquire
-lock_acquire:
- li a7, SYS_lock_acquire
- ecall
- ret
-.global lock_release
-lock_release:
- li a7, SYS_lock_release
- ecall
- ret
-.global lock_destroy
-lock_destroy:
- li a7, SYS_lock_destroy
- ecall
- ret
-.global clone
-clone:
- li a7, SYS_clone
- ecall
- ret
-.global join
-join:
- li a7, SYS_join
- ecall
- ret
-.global getprocessinfo
-getprocessinfo:
- li a7, SYS_getprocessinfo
- ecall
- ret
-.global shmget
-shmget:
- li a7, SYS_shmget
- ecall
- ret
-.global shmattach
-shmattach:
- li a7, SYS_shmattach
- ecall
- ret
-.global shmdetach
-shmdetach:
- li a7, SYS_shmdetach
  ecall
  ret

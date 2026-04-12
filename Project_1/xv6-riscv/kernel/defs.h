@@ -81,13 +81,10 @@ void            printfinit(void);
 int             cpuid(void);
 void            kexit(int);
 int             kfork(void);
-int             kclone(uint64, uint64, uint64);
-int             kjoin(void);
 int             growproc(int);
 void            proc_mapstacks(pagetable_t);
 pagetable_t     proc_pagetable(struct proc *);
 void            proc_freepagetable(pagetable_t, uint64);
-void            proc_freepagetable_thread(pagetable_t, uint64);
 int             kkill(int);
 int             killed(struct proc*);
 void            setkilled(struct proc*);
@@ -101,6 +98,9 @@ void            userinit(void);
 int             kwait(uint64);
 void            wakeup(void*);
 void            yield(void);
+void            ps(void);
+int             waitx(uint64, uint*, uint*);
+int             get_syscall_count(int);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
@@ -115,13 +115,6 @@ void            initlock(struct spinlock*, char*);
 void            release(struct spinlock*);
 void            push_off(void);
 void            pop_off(void);
-
-// syslock.c
-void            lockinit(void);
-
-// sysshm.c
-void            shminit(void);
-
 
 // sleeplock.c
 void            acquiresleep(struct sleeplock*);
@@ -169,8 +162,6 @@ pagetable_t     uvmcreate(void);
 uint64          uvmalloc(pagetable_t, uint64, uint64, int);
 uint64          uvmdealloc(pagetable_t, uint64, uint64);
 int             uvmcopy(pagetable_t, pagetable_t, uint64);
-int             uvmshare(pagetable_t, pagetable_t, uint64);
-void            freewalk(pagetable_t);
 void            uvmfree(pagetable_t, uint64);
 void            uvmunmap(pagetable_t, uint64, uint64, int);
 void            uvmclear(pagetable_t, uint64);

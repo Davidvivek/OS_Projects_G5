@@ -24,20 +24,11 @@ int getpid(void);
 char* sys_sbrk(int,int);
 int pause(int);
 int uptime(void);
-int getcwd(char*, int);
-int lock_create(void);
-int lock_acquire(int);
-int lock_release(int);
-int lock_destroy(int);
-int clone(void(*fn)(void*), void *arg, void *stack);
-int join(void);
-
-int getprocessinfo(void);
-
-int shmget(int key, int size);
-void* shmattach(int shmid);
-int shmdetach(void *addr);
-
+int getppid(void);
+int ps(void);
+int trace(int);
+int waitx(int*, uint*, uint*);
+int getcount(int);
 
 // ulib.c
 int stat(const char*, struct stat*);
@@ -53,8 +44,6 @@ int memcmp(const void *, const void *, uint);
 void *memcpy(void *, const void *, uint);
 char* sbrk(int);
 char* sbrklazy(int);
-int   thread_create(void(*fn)(void*), void *arg, void **stack);
-int   thread_join(void **stack);
 
 // printf.c
 void fprintf(int, const char*, ...) __attribute__ ((format (printf, 2, 3)));

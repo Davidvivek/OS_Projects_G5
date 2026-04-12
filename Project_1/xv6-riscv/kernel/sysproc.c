@@ -108,41 +108,45 @@ sys_uptime(void)
   return xticks;
 }
 
-// Create a new thread sharing the caller's address space.
-// Arguments: fn (function pointer), arg (void* arg), stack (top of stack).
 uint64
-sys_clone(void)
+sys_getppid(void)
 {
-  uint64 fn, arg, stack;
-  argaddr(0, &fn);
-  argaddr(1, &arg);
-  argaddr(2, &stack);
-  return kclone(fn, arg, stack);
-}
-
-// Wait for any child thread to exit.
-uint64
-sys_join(void)
-{
-  return kjoin();
+  struct proc *p = myproc();
+  acquire(&p->parent->lock);
+  int ppid = p->parent->pid;
+  release(&p->parent->lock);
+  return ppid;
 }
 
 uint64
-sys_getprocessinfo(void)
+sys_ps(void)
 {
-    struct proc *p = myproc();
+  ps();
+  return 0;
+}
 
-    printf("PID: %d\n", p->pid);
-    printf("Parent PID: %d\n", p->parent->pid);
-    char *state_names[] = {
-         "UNUSED",
-         "SLEEPING",
-         "RUNNABLE",
-         "RUNNING",
-         "ZOMBIE"
-};
+uint64
+sys_trace(void)
+{
+  int mask;
+  argint(0, &mask);
+  myproc()->tracemask = mask;
+  return 0;
+}
 
-printf("State: %s\n", state_names[p->state]);
+uint64
+sys_waitx(void)
+{
+  uint64 addr;
+  uint wtime, rtime;
+  argaddr(0, &addr);
+  return waitx(addr, &wtime, &rtime);
+}
 
-    return 0;
+uint64
+sys_getcount(void)
+{
+  int n;
+  argint(0, &n);
+  return get_syscall_count(n);
 }

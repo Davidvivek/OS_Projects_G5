@@ -103,6 +103,9 @@ struct proc {
   struct context context;      // swtch() here to run process
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
-  char name[16];               // Process name (debugging)
-  int is_thread;               // 1 if this proc shares address space with parent (thread)
+  char name[16];
+  int tracemask;
+  uint ctime;
+  uint rtime;
+  uint etime;               // Process name (debugging)
 };
