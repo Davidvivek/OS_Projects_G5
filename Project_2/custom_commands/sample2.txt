@@ -1,0 +1,9 @@
+
+This is a sample file for testing wc command.
+It contains multiple lines, words, and characters.
+123 numbers are also included here.
+
+Operating Systems are fun to learn.
+Processes and threads help in multitasking.
+Synchronization is important to avoid race conditions.
+
