@@ -119,6 +119,9 @@ void            pop_off(void);
 // syslock.c
 void            lockinit(void);
 
+// sysshm.c
+void            shminit(void);
+
 
 // sleeplock.c
 void            acquiresleep(struct sleeplock*);
