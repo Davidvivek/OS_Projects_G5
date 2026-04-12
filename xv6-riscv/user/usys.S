@@ -145,3 +145,18 @@ getprocessinfo:
  li a7, SYS_getprocessinfo
  ecall
  ret
+.global shmget
+shmget:
+ li a7, SYS_shmget
+ ecall
+ ret
+.global shmattach
+shmattach:
+ li a7, SYS_shmattach
+ ecall
+ ret
+.global shmdetach
+shmdetach:
+ li a7, SYS_shmdetach
+ ecall
+ ret

@@ -30,7 +30,7 @@
 
 #define SYS_getprocessinfo 29
 
-#define SYS_shmget       29
-#define SYS_shmattach    30
-#define SYS_shmdetach    31
+#define SYS_shmget       30
+#define SYS_shmattach    31
+#define SYS_shmdetach    32
 
